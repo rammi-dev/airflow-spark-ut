@@ -322,3 +322,37 @@ def get_connection_as_dict(connection_id: str) -> dict[str, Any]:
         "port": conn.port,
         "extra": conn.extra,
     }
+
+
+def create_spark_session_with_connection(
+    connection_dict: dict[str, Any],
+    app_name: str,
+    catalog_name: str,
+    master: str,
+    project_root: str,
+) -> tuple[SparkSession, StorageConfig]:
+    """Create Spark session with catalog from Airflow connection.
+    
+    This is a simplified version of create_spark_session_with_connection_dict
+    with a different parameter order for compatibility.
+    
+    Args:
+        connection_dict: Connection details as dictionary
+        app_name: Spark application name
+        catalog_name: Iceberg catalog name
+        master: Spark master URL  
+        project_root: Absolute path to project root (str or Path)
+        
+    Returns:
+        Tuple of (SparkSession, StorageConfig)
+    """
+    # Convert project_root to Path if it's a string
+    root_path = Path(project_root) if isinstance(project_root, str) else project_root
+    
+    return create_spark_session_with_connection_dict(
+        connection_dict=connection_dict,
+        app_name=app_name,
+        master=master,
+        catalog_name=catalog_name,
+        project_root=root_path,
+    )

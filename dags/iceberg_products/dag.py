@@ -118,7 +118,7 @@ def iceberg_create_products_dag() -> None:
         from typing import Any
 
         from pyspark.sql import functions as F
-        from dags.utils import create_spark_session_with_connection_dict
+        from dags.utils import create_spark_session_with_connection
 
         logger = logging.getLogger(__name__)
 
@@ -126,18 +126,18 @@ def iceberg_create_products_dag() -> None:
         # CSV path is relative to project root
         csv_path = Path(project_root) / "tests" / "resources" / "sample_products.csv"
 
-        # Create Spark session with storage configuration
-        spark, storage = create_spark_session_with_connection_dict(
+        # Create Spark session with catalog from Airflow connection
+        spark, storage = create_spark_session_with_connection(
             connection_dict=storage_conn_dict,
             app_name="iceberg_create_products",
             catalog_name=iceberg_catalog,
             master=spark_master,
-            project_root=Path(project_root),
+            project_root=project_root,
         )
 
         try:
             logger.info("Starting products table creation from CSV")
-            logger.info(f"Storage configuration: {storage.get_storage_info()}")
+            logger.info(f"Storage info: {storage.get_storage_info()}")
 
             # Read CSV file
             logger.info(f"Reading CSV from: {csv_path}")
@@ -193,8 +193,7 @@ def iceberg_create_products_dag() -> None:
                 "unique_categories": stats["unique_categories"],
                 "avg_price": float(stats["avg_price"]),
                 "total_stock": stats["total_stock"],
-                "storage_type": storage.conn_type,
-                "warehouse_path": storage.get_warehouse_path(),
+                "storage_info": storage.get_storage_info(),
             }
 
         finally:

@@ -11,9 +11,12 @@ other Airflow runtime features. They test the task code itself, not the orchestr
 
 import logging
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from airflow.models import DagBag
+from pyspark.sql import SparkSession
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -27,7 +30,46 @@ class TestDAGExecution:
         """Load all DAGs from the dags folder."""
         return DagBag(dag_folder="dags/", include_examples=False)
 
-    def test_execute_iceberg_products_dag_task(self, dag_bag: DagBag) -> None:
+    @pytest.fixture(scope="function")
+    def mock_spark_session_factory(self):
+        """Mock the Spark session creation functions to use local Hadoop catalog for testing."""
+        def create_test_spark_session(connection_dict, app_name, catalog_name, master, project_root):
+            """Create a local Spark session with Hadoop catalog for testing."""
+            # Handle both str and Path for project_root
+            if isinstance(project_root, str):
+                warehouse_path = Path(project_root) / "warehouse"
+            else:
+                warehouse_path = project_root / "warehouse"
+            
+            spark = (
+                SparkSession.builder
+                .appName(app_name)
+                .master(master)
+                .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.7.0")
+                .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+                .config(f"spark.sql.catalog.{catalog_name}", "org.apache.iceberg.spark.SparkCatalog")
+                .config(f"spark.sql.catalog.{catalog_name}.type", "hadoop")
+                .config(f"spark.sql.catalog.{catalog_name}.warehouse", str(warehouse_path))
+                .getOrCreate()
+            )
+            
+            # Create mock storage object
+            storage = MagicMock()
+            storage.conn_type = "local_fs"
+            storage.get_warehouse_path.return_value = str(warehouse_path)
+            storage.get_storage_info.return_value = {
+                "connection_type": "local_fs",
+                "warehouse_path": str(warehouse_path)
+            }
+            
+            return spark, storage
+        
+        # Patch both function names used in different DAGs
+        with patch('dags.utils.create_spark_session_with_connection', side_effect=create_test_spark_session), \
+             patch('dags.utils.create_spark_session_with_connection_dict', side_effect=create_test_spark_session):
+            yield
+
+    def test_execute_iceberg_products_dag_task(self, dag_bag: DagBag, mock_spark_session_factory) -> None:
         """Execute the create_iceberg_table_from_csv task and verify it works."""
         dag = dag_bag.dags["iceberg_create_products_dag"]
         task = dag.get_task("create_iceberg_table_from_csv")
@@ -51,8 +93,7 @@ class TestDAGExecution:
         assert "table_name" in result
         assert "total_products" in result
         assert "unique_categories" in result
-        assert "storage_type" in result
-        assert "warehouse_path" in result
+        assert "storage_info" in result
 
         assert result["total_products"] == 15
         assert result["unique_categories"] >= 4
@@ -62,7 +103,7 @@ class TestDAGExecution:
         logger.info("Products: %d", result["total_products"])
         logger.info("Categories: %d", result["unique_categories"])
 
-    def test_execute_spark_users_dag_task(self, dag_bag: DagBag) -> None:
+    def test_execute_spark_users_dag_task(self, dag_bag: DagBag, mock_spark_session_factory) -> None:
         """Execute the create_users_table_from_csv task and verify it works."""
         dag = dag_bag.dags["spark_iceberg_dag"]
         task = dag.get_task("create_users_table_from_csv")
@@ -95,7 +136,7 @@ class TestDAGExecution:
         logger.info("Users: %d", result["total_users"])
         logger.info("Departments: %d", result["unique_departments"])
 
-    def test_execute_daily_csv_to_iceberg_task(self, dag_bag: DagBag) -> None:
+    def test_execute_daily_csv_to_iceberg_task(self, dag_bag: DagBag, mock_spark_session_factory) -> None:
         """Execute the process_csv_to_iceberg task and verify it works."""
         dag = dag_bag.dags["daily_csv_to_iceberg"]
         task = dag.get_task("process_csv_to_iceberg")

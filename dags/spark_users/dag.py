@@ -116,7 +116,7 @@ def spark_iceberg_dag() -> None:
         from typing import Any
 
         from pyspark.sql import functions as F
-        from dags.utils import create_spark_session_with_connection_dict
+        from dags.utils import create_spark_session_with_connection
 
         logger = logging.getLogger(__name__)
 
@@ -124,18 +124,18 @@ def spark_iceberg_dag() -> None:
         # CSV path is relative to project root
         csv_path = Path(project_root) / "tests" / "resources" / "sample_users.csv"
 
-        # Create Spark session with storage configuration
-        spark, storage = create_spark_session_with_connection_dict(
+        # Create Spark session with catalog from Airflow connection
+        spark, storage = create_spark_session_with_connection(
             connection_dict=storage_conn_dict,
             app_name="spark_iceberg_users",
             catalog_name=iceberg_catalog,
             master=spark_master,
-            project_root=Path(project_root),
+            project_root=project_root,
         )
 
         try:
             logger.info("Starting users table creation from CSV")
-            logger.info(f"Storage configuration: {storage.get_storage_info()}")
+            logger.info(f"Storage info: {storage.get_storage_info()}")
 
             # Read CSV file
             logger.info(f"Reading CSV from: {csv_path}")
@@ -188,7 +188,7 @@ def spark_iceberg_dag() -> None:
                 "unique_departments": stats["unique_departments"],
                 "avg_age": float(stats["avg_age"]),
                 "avg_salary": float(stats["avg_salary"]),
-                "storage_type": storage.conn_type,
+                "storage_info": storage.get_storage_info(),
             }
 
         finally:
