@@ -38,3 +38,5 @@ Future formats can include:
 - JSON
 - Parquet
 - Avro
+
+To refresh my Spark knowledge, I experimented with unit testing. Today, setting up an end-to-end Spark + Iceberg stack in Kubernetes—or using Testcontainers as a lightweight alternative—is straightforward and can be used for unit tests. Sometimes, the old-school approach of mocking with a Hadoop catalog remains the simplest way to quickly validate Spark ingestion or SQL logic in pipelines. I’m curious whether mocking will eventually become obsolete as these environments become easier to set up.
