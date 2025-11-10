@@ -7,6 +7,9 @@ __pycache__/
 .venv/
 venv/
 env/
+*.egg-info/
+dist/
+build/
 
 # uv
 uv.lock
@@ -27,6 +30,7 @@ metastore_db/
 derby.log
 spark-warehouse/
 warehouse/
+*.log
 
 # Testing
 .pytest_cache/
@@ -45,3 +49,10 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/

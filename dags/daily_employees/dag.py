@@ -69,8 +69,8 @@ Check the DAG Details page in the UI for version history.
 def daily_csv_to_iceberg() -> None:
     """DAG that loads CSV data to Iceberg table with Airflow logical date."""
 
-    # Read requirements from file
-    requirements_file = Path(__file__).parent / "daily_csv_to_iceberg" / "requirements.txt"
+    # Read requirements from file in same directory as DAG
+    requirements_file = Path(__file__).parent / "requirements.txt"
     requirements = requirements_file.read_text().strip().split('\n')
     
     # Get venv cache path from Airflow Variables with DAG-specific subdirectory
@@ -78,10 +78,14 @@ def daily_csv_to_iceberg() -> None:
     venv_cache = f"{venv_cache_base}/daily_csv_to_iceberg"
     
     # Get workspace root to add to PYTHONPATH so virtualenv can import dags module
-    workspace_root = str(Path(__file__).parent.parent)
+    # Can be overridden via PROJECT_ROOT env var for deployment flexibility
+    import os
+    workspace_root = os.environ.get(
+        "PROJECT_ROOT",
+        str(Path(__file__).parent.parent.parent)  # Default: DAG is in dags/daily_employees/
+    )
     
     # Build env vars - include AIRFLOW_HOME and AIRFLOW_CONFIG if set (for testing)
-    import os
     env_vars = {"PYTHONPATH": workspace_root}
     if "AIRFLOW_HOME" in os.environ:
         env_vars["AIRFLOW_HOME"] = os.environ["AIRFLOW_HOME"]
@@ -89,10 +93,11 @@ def daily_csv_to_iceberg() -> None:
         env_vars["AIRFLOW_CONFIG"] = os.environ["AIRFLOW_CONFIG"]
 
     @task.virtualenv(
-        requirements=requirements_file.read_text().strip().split('\n'),
+        requirements=requirements,  # Pass list of requirements
         venv_cache_path=venv_cache,  # Cache venv on persistent storage
         python_version="3.11",  # Specify Python version explicitly for uv
         env_vars=env_vars,  # Pass environment variables including AIRFLOW_HOME
+        system_site_packages=True,  # Allow access to parent environment for dags.utils imports
     )
     def process_csv_to_iceberg(
         csv_input_path: str,
@@ -100,6 +105,7 @@ def daily_csv_to_iceberg() -> None:
         iceberg_namespace: str,
         spark_master: str,
         storage_conn_dict: dict[str, Any],
+        project_root: str,
         logical_date: datetime | str | None = None,  # Context param must have default
     ) -> dict[str, Any]:
         """Process CSV file and write to Iceberg table with logical date column.
@@ -121,7 +127,6 @@ def daily_csv_to_iceberg() -> None:
         from typing import Any
 
         from pyspark.sql.functions import lit
-
         from dags.utils import create_spark_session_with_connection_dict
 
         logger = logging.getLogger(__name__)
@@ -138,9 +143,12 @@ def daily_csv_to_iceberg() -> None:
 
                 logical_date = parse(logical_date)
 
-        # Get project root
-        project_root = Path(__file__).parent.parent
-        csv_path = project_root / csv_input_path
+        # Setup paths - project_root passed as parameter from DAG context
+        # Handle both absolute and relative paths
+        if Path(csv_input_path).is_absolute():
+            csv_path = Path(csv_input_path)
+        else:
+            csv_path = Path(project_root) / csv_input_path
 
         # Create Spark session with storage configuration
         spark, storage = create_spark_session_with_connection_dict(
@@ -148,7 +156,7 @@ def daily_csv_to_iceberg() -> None:
             app_name="daily_csv_to_iceberg",
             catalog_name=iceberg_catalog,
             master=spark_master,
-            project_root=project_root,
+            project_root=Path(project_root),
         )
 
         # Log storage info
@@ -224,6 +232,7 @@ def daily_csv_to_iceberg() -> None:
         iceberg_namespace=iceberg_namespace,
         spark_master=spark_master,
         storage_conn_dict=storage_conn_dict,
+        project_root=workspace_root,  # Pass workspace root for file path resolution
         logical_date="{{ logical_date }}",  # Context param last
     )
 

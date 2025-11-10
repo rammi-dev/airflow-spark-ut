@@ -73,6 +73,9 @@ df = spark.table("local.default.my_table")
 # Run tests
 uv run pytest tests/ -v
 
+# Run specific test (e.g., CSV to Iceberg conversion)
+uv run pytest tests/test_spark_jobs.py::TestSparkJobs::test_csv_to_iceberg_table -v
+
 # Code quality checks
 uv run ruff check .
 uv run ruff format .
@@ -82,12 +85,75 @@ uv run mypy .
 uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest
 ```
 
+## Testing
+
+The test suite includes:
+
+- **DAG Structure Tests**: Validate DAG configuration, tags, schedules, and structure
+- **Spark Session Tests**: Verify Spark session creation with Iceberg extensions
+- **Iceberg Table Tests**: Test table creation, data operations, and schema validation
+- **CSV to Iceberg**: End-to-end test creating CSV files and converting to Iceberg tables
+
+Example test creates a sample employee CSV file with 5 records and:
+- Reads CSV into Spark DataFrame with schema inference
+- Validates data types and structure
+- Converts to Iceberg table format
+- Performs filtering and aggregation queries
+- Verifies data integrity throughout the pipeline
+
 ## Project Structure
 
 - `dags/` - Airflow DAG definitions
 - `tests/` - Unit tests for DAGs and tasks
+  - `tests/resources/` - Sample data files (CSV, etc.) for testing
 - `config/` - Configuration files
+  - `config/airflow_test.cfg` - Test-specific Airflow configuration
+  - `config/test_variables.json` - Airflow Variables loaded during tests
+- `warehouse/` - Iceberg table storage (gitignored, created by tests)
 - `pyproject.toml` - Dependencies and tool configuration
+
+## Configuration and Variables
+
+The project uses Airflow Variables for configuration, making DAGs flexible and testable:
+
+### Test Variables (`config/test_variables.json`)
+
+```json
+{
+  "csv_input_path": "tests/resources/sample_employees.csv",
+  "warehouse_path": "warehouse",
+  "iceberg_catalog": "local",
+  "iceberg_namespace": "default",
+  "processing_batch_size": 1000,
+  "spark_master": "local[*]"
+}
+```
+
+### Using Variables in DAGs
+
+```python
+from airflow.models import Variable
+
+# Get variable with fallback
+warehouse_path = Variable.get("warehouse_path", default_var="warehouse")
+csv_path = Variable.get("csv_input_path", default_var="tests/resources/data.csv")
+```
+
+During tests, variables are automatically loaded from `config/test_variables.json` by the `tests/conftest.py` fixture.
+
+## Iceberg Warehouse Location
+
+Iceberg tables created during tests are stored in the project directory:
+
+```
+warehouse/
+├── default/
+│   └── sample_employees/
+│       ├── data/          # Parquet data files
+│       └── metadata/      # Iceberg metadata files
+```
+
+This directory is automatically created when running tests and is excluded from git via `.gitignore`. You can inspect the tables using Spark or PyIceberg after running tests.
 
 ## Usage
 

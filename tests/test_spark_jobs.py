@@ -1,8 +1,6 @@
 """Unit tests for Spark job logic."""
 
-import csv
 import logging
-import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
@@ -79,68 +77,57 @@ class TestSparkJobs:
 
     def test_csv_to_iceberg_table(self, spark_session: SparkSession) -> None:
         """Test creating a CSV file and converting it to an Iceberg table."""
-        # Create a temporary CSV file with sample data
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as csv_file:
-            csv_path = csv_file.name
-            writer = csv.writer(csv_file)
+        # Get path to sample CSV from resources
+        resources_dir = Path(__file__).parent / "resources"
+        csv_path = resources_dir / "sample_employees.csv"
 
-            # Write header
-            writer.writerow(["id", "name", "age", "city", "salary"])
+        # Verify the sample CSV exists
+        assert csv_path.exists(), f"Sample CSV not found at {csv_path}"
 
-            # Write sample data
-            writer.writerow([1, "Alice", 30, "New York", 75000.50])
-            writer.writerow([2, "Bob", 25, "San Francisco", 85000.75])
-            writer.writerow([3, "Charlie", 35, "Seattle", 95000.00])
-            writer.writerow([4, "Diana", 28, "Boston", 70000.25])
-            writer.writerow([5, "Eve", 32, "Austin", 80000.00])
+        # Read CSV into Spark DataFrame
+        df = spark_session.read.csv(
+            str(csv_path),
+            header=True,
+            inferSchema=True,
+        )
 
-        try:
-            # Read CSV into Spark DataFrame
-            df = spark_session.read.csv(
-                csv_path,
-                header=True,
-                inferSchema=True,
-            )
+        # Verify DataFrame was read correctly
+        assert df.count() == 10  # We have 10 records in sample
+        assert set(df.columns) == {"id", "name", "age", "city", "salary"}
 
-            # Verify DataFrame was read correctly
-            assert df.count() == 5
-            assert set(df.columns) == {"id", "name", "age", "city", "salary"}
+        # Validate data types
+        schema_dict = {field.name: str(field.dataType) for field in df.schema.fields}
+        assert "IntegerType" in schema_dict["id"]
+        assert "StringType" in schema_dict["name"]
+        assert "IntegerType" in schema_dict["age"]
+        assert "DoubleType" in schema_dict["salary"]
 
-            # Validate data types
-            schema_dict = {field.name: str(field.dataType) for field in df.schema.fields}
-            assert "IntegerType" in schema_dict["id"]
-            assert "StringType" in schema_dict["name"]
-            assert "IntegerType" in schema_dict["age"]
-            assert "DoubleType" in schema_dict["salary"]
+        # Convert to Iceberg table
+        table_name = "local.default.employees"
+        df.writeTo(table_name).createOrReplace()
 
-            # Convert to Iceberg table
-            table_name = "local.default.employees"
-            df.writeTo(table_name).createOrReplace()
+        # Read from Iceberg table and validate
+        iceberg_df = spark_session.table(table_name)
+        assert iceberg_df.count() == 10
 
-            # Read from Iceberg table and validate
-            iceberg_df = spark_session.table(table_name)
-            assert iceberg_df.count() == 5
+        # Verify data integrity - check first record (Alice)
+        alice = iceberg_df.filter(iceberg_df.name == "Alice").collect()[0]
+        assert alice["age"] == 30
+        assert alice["city"] == "New York"
+        assert alice["salary"] == 75000.50
 
-            # Verify data integrity
-            alice = iceberg_df.filter(iceberg_df.name == "Alice").collect()[0]
-            assert alice["age"] == 30
-            assert alice["city"] == "New York"
-            assert alice["salary"] == 75000.50
+        # Test filtering on Iceberg table (salaries > 80000: Bob, Charlie, Iris)
+        high_earners = iceberg_df.filter(iceberg_df.salary > 80000).count()
+        assert high_earners == 3
 
-            # Test filtering on Iceberg table
-            high_earners = iceberg_df.filter(iceberg_df.salary > 80000).count()
-            assert high_earners == 2  # Bob and Charlie
+        # Test aggregation on Iceberg table
+        avg_salary = iceberg_df.agg({"salary": "avg"}).collect()[0][0]
+        # Average of all 10 salaries: (75000.50 + 85000.75 + 95000.00 + 70000.25 + 80000.00 + 72000.00 + 78000.50 + 69000.75 + 88000.00 + 71000.25) / 10 = 78300.3
+        expected_avg = 78300.3
+        assert abs(avg_salary - expected_avg) < 10  # Within $10 tolerance
 
-            # Test aggregation on Iceberg table
-            avg_salary = iceberg_df.agg({"salary": "avg"}).collect()[0][0]
-            assert abs(avg_salary - 81000.30) < 1  # Average salary
-
-            # Clean up Iceberg table
-            spark_session.sql(f"DROP TABLE IF EXISTS {table_name}")
-
-        finally:
-            # Clean up CSV file
-            Path(csv_path).unlink(missing_ok=True)
+        # Clean up Iceberg table
+        spark_session.sql(f"DROP TABLE IF EXISTS {table_name}")
 
     def test_csv_from_resources_to_iceberg(self, spark_session: SparkSession) -> None:
         """Test loading sample CSV from resources and converting to Iceberg table."""
