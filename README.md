@@ -1,0 +1,147 @@
+# Airflow DAG Development
+
+Boilerplate for Apache Airflow DAG development with Spark and Iceberg integration.
+
+## Tech Stack
+
+- **Apache Airflow**: 3.0.1 (latest stable)
+- **PySpark**: 3.5.3
+- **Apache Iceberg**: 1.7.0 (via Spark runtime)
+- **PyIceberg**: 0.10.0 (latest)
+- **Python**: 3.11+
+
+## Setup
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment with Python 3.11
+uv venv --python 3.11
+
+# Activate environment
+source .venv/bin/activate
+
+# Install dependencies
+uv sync --all-extras
+```
+
+## Key Changes for Airflow 3.0
+
+Airflow 3.0 introduces several breaking changes:
+
+1. **Schedule Parameter**: Use `schedule` instead of `schedule_interval` in DAG definitions
+2. **Timetable API**: Access schedule via `dag.timetable` instead of `dag.schedule_interval`
+3. **Task ID Inference**: TaskFlow API automatically infers task IDs from function names
+
+## Spark and Iceberg Integration
+
+This project uses:
+- **Spark 3.5.3** with Iceberg 1.7.0 runtime for Scala 2.12
+- **PyIceberg** for Python-native Iceberg catalog operations
+- Hadoop-based local catalog for development/testing
+
+### Iceberg Table Operations
+
+```python
+# Write to Iceberg table with Spark
+df.writeTo("local.default.my_table").createOrReplace()
+
+# Read from Iceberg table
+df = spark.table("local.default.my_table")
+```
+
+## Development
+
+```bash
+# Run tests
+uv run pytest tests/ -v
+
+# Run specific test (e.g., CSV to Iceberg conversion)
+uv run pytest tests/test_spark_jobs.py::TestSparkJobs::test_csv_to_iceberg_table -v
+
+# Code quality checks
+uv run ruff check .
+uv run ruff format .
+uv run mypy .
+
+# Run all checks at once
+uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest
+```
+
+## Testing
+
+The test suite includes:
+
+- **DAG Structure Tests**: Validate DAG configuration, tags, schedules, and structure
+- **Spark Session Tests**: Verify Spark session creation with Iceberg extensions
+- **Iceberg Table Tests**: Test table creation, data operations, and schema validation
+- **CSV to Iceberg**: End-to-end test creating CSV files and converting to Iceberg tables
+
+Example test creates a sample employee CSV file with 5 records and:
+- Reads CSV into Spark DataFrame with schema inference
+- Validates data types and structure
+- Converts to Iceberg table format
+- Performs filtering and aggregation queries
+- Verifies data integrity throughout the pipeline
+
+## Project Structure
+
+- `dags/` - Airflow DAG definitions
+- `tests/` - Unit tests for DAGs and tasks
+  - `tests/resources/` - Sample data files (CSV, etc.) for testing
+- `config/` - Configuration files
+  - `config/airflow_test.cfg` - Test-specific Airflow configuration
+  - `config/test_variables.json` - Airflow Variables loaded during tests
+- `warehouse/` - Iceberg table storage (gitignored, created by tests)
+- `pyproject.toml` - Dependencies and tool configuration
+
+## Configuration and Variables
+
+The project uses Airflow Variables for configuration, making DAGs flexible and testable:
+
+### Test Variables (`config/test_variables.json`)
+
+```json
+{
+  "csv_input_path": "tests/resources/sample_employees.csv",
+  "warehouse_path": "warehouse",
+  "iceberg_catalog": "local",
+  "iceberg_namespace": "default",
+  "processing_batch_size": 1000,
+  "spark_master": "local[*]"
+}
+```
+
+### Using Variables in DAGs
+
+```python
+from airflow.models import Variable
+
+# Get variable with fallback
+warehouse_path = Variable.get("warehouse_path", default_var="warehouse")
+csv_path = Variable.get("csv_input_path", default_var="tests/resources/data.csv")
+```
+
+During tests, variables are automatically loaded from `config/test_variables.json` by the `tests/conftest.py` fixture.
+
+## Iceberg Warehouse Location
+
+Iceberg tables created during tests are stored in the project directory:
+
+```
+warehouse/
+├── default/
+│   └── sample_employees/
+│       ├── data/          # Parquet data files
+│       └── metadata/      # Iceberg metadata files
+```
+
+This directory is automatically created when running tests and is excluded from git via `.gitignore`. You can inspect the tables using Spark or PyIceberg after running tests.
+
+## Usage
+
+1. Add your DAGs to the `dags/` directory
+2. Write unit tests in `tests/`
+3. Run quality checks before committing
+4. Point Airflow's `dags_folder` to this project's `dags/` directory

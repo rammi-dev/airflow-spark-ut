@@ -1,0 +1,16 @@
+product_id,product_name,category,price,stock_quantity,supplier
+P001,Laptop,Electronics,1299.99,45,TechSupplier Inc
+P002,Office Chair,Furniture,249.99,120,ComfortSeating
+P003,Notebook,Stationery,3.99,500,PaperGoods Ltd
+P004,Wireless Mouse,Electronics,29.99,200,TechSupplier Inc
+P005,Desk Lamp,Furniture,39.99,80,LightingCo
+P006,USB Cable,Electronics,9.99,350,TechSupplier Inc
+P007,Whiteboard,Office,89.99,25,OfficeMax
+P008,Coffee Mug,Kitchen,12.99,150,KitchenWare
+P009,Monitor,Electronics,349.99,60,TechSupplier Inc
+P010,Desk Organizer,Office,24.99,95,OfficeMax
+P011,Keyboard,Electronics,79.99,110,TechSupplier Inc
+P012,Filing Cabinet,Furniture,189.99,30,OfficeFurniture Co
+P013,Pen Set,Stationery,14.99,300,PaperGoods Ltd
+P014,Desk Mat,Office,19.99,180,OfficeMax
+P015,Water Bottle,Kitchen,15.99,220,KitchenWare

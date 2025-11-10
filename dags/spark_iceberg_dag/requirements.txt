@@ -1,0 +1,8 @@
+# Dependencies for spark_iceberg_dag
+# Version: 1.0.0
+# Last updated: 2025-11-10
+
+# Spark and Iceberg
+pyspark==3.5.3
+pyiceberg==0.10.0
+pyarrow>=17.0.0

@@ -1,0 +1,9 @@
+user_id,name,age,department,salary,join_date
+U001,Alice Johnson,28,Engineering,95000,2022-03-15
+U002,Bob Smith,35,Marketing,78000,2020-06-01
+U003,Charlie Brown,42,Engineering,105000,2019-01-10
+U004,Diana Prince,31,HR,72000,2021-08-20
+U005,Edward Norton,29,Engineering,88000,2022-11-05
+U006,Fiona Apple,38,Sales,82000,2020-02-14
+U007,George Lucas,45,Management,120000,2018-05-30
+U008,Hannah Montana,26,Marketing,68000,2023-01-12

@@ -1,0 +1,10 @@
+apache-airflow==3.0.1
+pyspark==3.5.3
+pyiceberg==0.10.0
+pyarrow>=17.0.0
+
+[dev]
+pytest>=7.4.0
+pytest-cov>=4.1.0
+mypy>=1.7.0
+ruff>=0.1.0

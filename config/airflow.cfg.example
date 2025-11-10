@@ -1,0 +1,12 @@
+# Example Airflow configuration settings
+# Copy to airflow.cfg and adjust as needed
+
+[core]
+dags_folder = /path/to/setup-uv/dags
+load_examples = False
+
+[scheduler]
+catchup_by_default = False
+
+[webserver]
+expose_config = True

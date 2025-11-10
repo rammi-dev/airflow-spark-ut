@@ -1,0 +1,12 @@
+{
+  "csv_input_path": "tests/resources/sample_employees.csv",
+  "warehouse_path": "warehouse",
+  "iceberg_catalog": "local",
+  "iceberg_namespace": "default",
+  "processing_batch_size": 1000,
+  "spark_master": "local[*]",
+  "storage_connection_id": "iceberg_storage",
+  "spark_session_timeout": 60,
+  "task_execution_timeout": 300,
+  "s3_connection_timeout": 30
+}

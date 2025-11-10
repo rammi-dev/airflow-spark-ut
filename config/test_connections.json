@@ -1,0 +1,90 @@
+[
+  {
+    "conn_id": "iceberg_storage",
+    "conn_type": "fs",
+    "description": "Local filesystem storage for Iceberg warehouse",
+    "host": "",
+    "login": "",
+    "password": "",
+    "schema": "",
+    "port": null,
+    "extra": {
+      "warehouse_path": "warehouse",
+      "catalog_type": "hadoop",
+      "connection_timeout": 60,
+      "socket_timeout": 60
+    }
+  },
+  {
+    "conn_id": "minio_s3",
+    "conn_type": "s3",
+    "description": "MinIO S3 storage with Hadoop catalog (example)",
+    "host": "localhost",
+    "login": "minioadmin",
+    "password": "minioadmin",
+    "schema": "",
+    "port": 9000,
+    "extra": {
+      "endpoint_url": "http://localhost:9000",
+      "aws_access_key_id": "minioadmin",
+      "aws_secret_access_key": "minioadmin",
+      "bucket": "iceberg-warehouse",
+      "catalog_type": "hadoop",
+      "connection_timeout": 30,
+      "socket_timeout": 30,
+      "s3_connection_establish_timeout": 10,
+      "s3_connection_timeout": 30
+    }
+  },
+  {
+    "conn_id": "iceberg_rest_s3",
+    "conn_type": "s3",
+    "description": "Production S3 storage with REST catalog",
+    "host": "s3.amazonaws.com",
+    "login": "aws_access_key_id",
+    "password": "aws_secret_access_key",
+    "schema": "",
+    "port": null,
+    "extra": {
+      "endpoint_url": "https://s3.us-east-1.amazonaws.com",
+      "aws_access_key_id": "your-access-key",
+      "aws_secret_access_key": "your-secret-key",
+      "bucket": "prod-iceberg-warehouse",
+      "region": "us-east-1",
+      "catalog_type": "rest",
+      "rest_uri": "https://catalog.example.com/v1",
+      "rest_credential": "your-catalog-api-token",
+      "connection_timeout": 30,
+      "socket_timeout": 60,
+      "s3_connection_establish_timeout": 15,
+      "s3_connection_timeout": 60
+    }
+  },
+  {
+    "conn_id": "iceberg_rest_polaris",
+    "conn_type": "s3",
+    "description": "Polaris REST catalog with S3 storage",
+    "host": "s3.amazonaws.com",
+    "login": "aws_access_key_id",
+    "password": "aws_secret_access_key",
+    "schema": "",
+    "port": null,
+    "extra": {
+      "endpoint_url": "https://s3.us-west-2.amazonaws.com",
+      "aws_access_key_id": "your-access-key",
+      "aws_secret_access_key": "your-secret-key",
+      "bucket": "iceberg-data",
+      "region": "us-west-2",
+      "catalog_type": "rest",
+      "rest_uri": "https://polaris.example.com:8181/api/catalog",
+      "rest_credential": "polaris-principal:polaris-credentials",
+      "rest_headers": {
+        "X-Iceberg-Access-Delegation": "vended-credentials"
+      },
+      "connection_timeout": 30,
+      "socket_timeout": 60,
+      "s3_connection_establish_timeout": 15,
+      "s3_connection_timeout": 60
+    }
+  }
+]
